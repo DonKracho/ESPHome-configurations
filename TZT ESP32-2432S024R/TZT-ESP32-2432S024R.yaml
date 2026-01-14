@@ -1,0 +1,305 @@
+substitutions:
+  device_name: "esp32-2432s024r"
+  friendly_name: "TZT 240x320 2.4\" Touch Display"
+
+esphome:
+  name: $device_name
+  friendly_name: $friendly_name
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+  level: Info
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret esphome_encryption_key
+
+# Allow Over-The-Air updates
+ota:
+  - platform: esphome
+    password: !secret esphome_ota_key
+
+# WiFi client
+wifi:
+  min_auth_mode: WPA2
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "${device_name} hotspot"
+    password: !secret hotspot_password
+
+# In combination with the `ap` this allows the user
+# to provision wifi credentials to the device via WiFi AP.
+captive_portal:
+
+# Allow provisioning Wi-Fi via serial or web_server
+#improv_serial:
+# or connect to the fallback ap and get redirected to a web page for wifi credentials
+# To have a "next url" for improv serial
+web_server:
+  port: 80
+
+i2c:
+  sda: GPIO21  # Orig gpio 27 for 2.8" LCD but for 2.4" gpio 21
+  scl: GPIO22   # Orig gpio 22 for 2.8" LCD but for 2.4" gpio 22
+  scan: true
+  id: i2c_bus
+
+# Include custom fonts
+font:
+  - file: "gfonts://Roboto"
+    id: roboto
+    size: 32
+    glyphsets: GF_Latin_Core
+
+spi:
+  - id: spi_bus
+    clk_pin:  GPIO14
+    mosi_pin: GPIO13
+    miso_pin: GPIO12
+
+display:
+  - platform: ili9xxx
+    model: ST7789V
+    id: lcd_screen
+    spi_id: spi_bus
+    cs_pin: GPIO15
+    dc_pin: GPIO2
+    reset_pin: GPIO3
+    data_rate: 40MHz    # 80MHz gives artifacts
+    dimensions:
+      height: 320
+      width: 240
+#    dimensions:
+#      height: 240
+#      width: 320
+#    transform:         # use transform for hardware rotation. https://esphome.io/components/display/ili9xxx/
+#      swap_xy: true    # landscape (90°) - dimensions have to be adjusted too
+#      mirror_x: true
+#      mirror_y: false
+#    rotation: 0        # software rotation, default: portrait mode with USB-C connetor being bottom. 
+    auto_clear_enabled: True
+    pixel_mode: 18bit
+    color_order: bgr
+    color_palette: 8bit
+    invert_colors: false
+    update_interval: never 
+    lambda: |-
+          auto red = Color(255, 0, 0);
+          auto green = Color(0, 255, 0);
+          auto blue = Color(0, 0, 255);
+          auto yellow =  Color(255, 255, 0);
+          auto black = Color(0, 0, 0);
+          auto white = Color(255, 255, 255);
+          auto w = it.get_width();
+          auto h = it.get_height();
+          auto d = ((w > h) ? h : w) - 1;
+          auto eye_hpos = h * 17 / 40;
+          int index = id(lambda_index).state; 
+          switch (index) {
+          case 0:
+            // draw a simple smiley
+            it.fill(blue);
+            it.filled_circle(w/2, h/2, d/2, yellow);
+            it.filled_circle(w/2, h*21/40, d/3, red);
+            it.filled_circle(w/2, h*17/40, d*4/10, yellow);
+            it.filled_circle(w*6/20, eye_hpos, d/7, white);
+            it.filled_circle(w*14/20, eye_hpos, d/7, white);
+            it.filled_circle(w*6/20, eye_hpos, d/12, black);
+            it.filled_circle(w*14/20, eye_hpos, d/12, black);
+            break;
+          case 1:
+            // draw text
+            it.filled_rectangle(0, 0, w, 80, red);
+            it.filled_rectangle(0, h-80, w, 80, red);
+            it.print(w/2, h/2, id(roboto), white, TextAlign::CENTER, id(text_id).state.c_str());
+            break;
+          case 2:
+            // show some sensor values
+            it.fill(yellow);
+            it.rectangle( 0, 0, w, h, red);
+            it.printf(w/2, h/4, id(roboto), blue, TextAlign::CENTER, "w=%d", w);
+            it.printf(w/2, h/4*3, id(roboto), blue, TextAlign::CENTER, "h=%d", h);
+            break;
+          case 3:
+            // draw primitives
+            it.filled_rectangle(0, 0, w, h, red);
+            it.filled_rectangle(w/6, h/6, (w*4/6)+1, (h*4/6)+1, white);
+            it.filled_rectangle(w/3, h/3, (w/3)+2, (h/3)+2, blue);
+            it.filled_triangle(1, h-2, w-2, h-2, w/2, h/2-1, yellow);
+            break;
+          case 4:
+            // pure red lcd test screen
+            it.fill(red);
+            break;
+          case 5:
+            // pure green lcd test screen
+            it.fill(green);
+            break;
+          case 6:
+            // pure blue lcd test screen
+            it.fill(blue);
+            break;
+          case 7:
+            // pure white lcd test screen
+            it.fill(white);
+            break;
+          case 8:
+            // pure black lcd test screen
+            it.fill(black);
+            break;
+          default:
+            it.filled_ring(w/2, h/2, (d/2)-40, d/2, green);
+            it.printf(w/2, h/2, id(roboto), white, TextAlign::CENTER, "%d", index);
+            break;
+          }
+
+touchscreen:
+  platform: xpt2046
+  display: lcd_screen
+  spi_id: spi_bus
+  cs_pin: GPIO33
+  interrupt_pin: GPIO36
+  update_interval: 50ms  
+  threshold: 200
+  calibration:
+    x_min: 350
+    x_max: 3720
+    y_min: 350
+    y_max: 3720
+  transform:
+    mirror_x: true
+    mirror_y: false
+    swap_xy: true
+  on_touch:
+    - lambda: |-
+        ESP_LOGI("touch", "x=%d, y=%d, x_raw=%d, y_raw=%0d", touch.x, touch.y, touch.x_raw, touch.y_raw);
+        id(sensor_touch_x).publish_state(touch.x);
+        id(sensor_touch_y).publish_state(touch.y);
+  on_update:
+    - lambda: |-
+        for (auto touch: touches)  {
+          if (touch.state <= 2) {
+            ESP_LOGI("Touch points:", "id=%d x=%d, y=%d", touch.id, touch.x, touch.y);
+          }
+        }
+
+sensor:
+  - platform: adc
+    id: ldr
+    name: LDR
+    pin: GPIO34
+    update_interval: 1s
+  - platform: template
+    id: sensor_touch_x
+    name: touchpad last x
+    accuracy_decimals: 0
+    update_interval: never
+  - platform: template
+    id: sensor_touch_y
+    name: touchpad last y
+    accuracy_decimals: 0
+    update_interval: never
+
+binary_sensor:
+  - platform: gpio
+    id: boot_button
+    name: Boot button
+    pin:
+      number: GPIO0
+      inverted: true
+
+  - platform: touchscreen
+    name: touch button Top
+    x_min: 0
+    x_max: 239
+    y_min: 0
+    y_max: 159
+    on_press:
+      lambda: |-
+        int index = id(lambda_index).state - 1;
+        if (index < 0) index = 9; 
+        id(lambda_index).publish_state(index);
+  - platform: touchscreen
+    name: touch button Bottom
+    x_min: 0
+    x_max: 239
+    y_min: 160
+    y_max: 319
+    on_press:
+      lambda: |-
+        int index = id(lambda_index).state + 1;
+        if (index > 9) index = 0; 
+        id(lambda_index).publish_state(index);
+
+number:
+  - platform: template
+    id: lambda_index
+    name: screen index
+    mode: auto
+    optimistic: true
+    min_value: 0
+    max_value: 9
+    step: 1
+    on_value:
+      lambda: |-
+        id(lcd_screen).update();
+
+output:
+  # LCD back light
+  - platform: ledc
+    pin: GPIO27
+    id: backlight_led_pin
+
+  # onboard rgb LED
+  - platform: ledc
+    id: output_red
+    pin: GPIO4
+    inverted: true
+  - platform: ledc
+    id: output_green
+    pin: GPIO17
+    inverted: true
+  - platform: ledc
+    id: output_blue
+    pin: GPIO16
+    inverted: true
+
+light:
+  # LCD back light
+  - platform: monochromatic
+    output: backlight_led_pin
+    name: "Display Backlight"
+    id: back_light
+    restore_mode: ALWAYS_ON
+
+  # onboard RGB LED
+  - platform: rgb
+    name: Onboard LED
+    id: led
+    red: output_red
+    green: output_green
+    blue: output_blue
+    restore_mode: ALWAYS_OFF
+
+text:
+  - platform: template 
+    name: Text
+    id: text_id
+    mode: text
+    initial_value: "Hello World!"
+    optimistic: true
+    icon: "mdi:keyboard-settings-outline"
+    update_interval: never
+    on_value:
+      lambda: |-
+        id(lcd_screen).update();
+
