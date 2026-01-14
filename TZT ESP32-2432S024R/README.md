@@ -1,10 +1,10 @@
 ## TZT ESP32-2432S024R
-### ESP32 module with LCD display and resistive touch screen
+### ESP32 module with 2.4" LCD display and resistive touch screen
 
 <img src="docs/smiley.jpg" alt="ESPHome sample" width="600">
 
 This is just another clone of the famous CYD ESP32-2432S028x (Cheap Yellow Display) module, but with 2.4" LCD-TFT display installed.
-The R at the end of the module name stands for resistive touch screen.
+The R at the end of the module identification stands for resistive touch screen.
 
 refer to: [TZT store](https://www.tztstore.com/goods/show-7983.html) In the download section you will find a zip file with informations about the display includung some example sources for arduino IDE and firmware. Use at your own risk! My display came with the arduino-LVGL examle installed. But flashing the bin included in this zip file does not fit the LCD display installed.
 
@@ -22,7 +22,7 @@ The Onboard LED red is weak. Selecting white is emmited as blue.
 I did not test the SD-Card slot and I2S Audio output because there is no native ESPHome support and I'm not going to use these features
 
 The flash_download_tool_3.9.9_R2 device_info response:
-'''
+```
 start detect chip...please wait
 chip sync ...
 Chip is ESP32-D0WD-V3 (revision v3.1)
@@ -33,7 +33,7 @@ Manufacturer: 5e
 Device: 4016
 Status value: 0x100200
 Detected flash size: 4MB
-'''
-
+```
+Some actual images of my module. I got it in Dec. 2024 from the ali TZT store for about 6€.
 ![module front](docs/front.jpg)
 ![module back](docs/back.jpg)
