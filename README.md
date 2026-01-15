@@ -1,4 +1,4 @@
-![Made for ESPHome](https://esphome.io/guides/images/made-for-esphome-black-on-white.svg)
+![Made for ESPHome](made-for-esphome-black-on-white.svg)
 
 # Basic ESPHome configuration samples
 
