@@ -1,0 +1,49 @@
+substitutions:
+  device_name: esp-c3-super-mini
+  friendly_name: 'ESP-C3 Super Mini'
+
+esphome:
+  name: $device_name
+  friendly_name: $friendly_name
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+  baud_rate: 115200
+  hardware_uart: UART0
+  level: debug
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret esphome_api_key
+
+# Allow Over-The-Air updates
+ota:
+  - platform: esphome
+    password: !secret esphome_ota_key
+
+# WiFi client configuration
+wifi:
+  min_auth_mode: WPA2
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "${friendly_name} Hotspot"
+    password: !secret hotspot_password
+
+# Allow provisioning Wi-Fi via serial or web_server
+improv_serial:
+# or connect to the fallback ap and get redirected to a web page for wifi credentials
+# To have a "next url" for improv serial
+web_server:
+
+# In combination with the `ap` this allows the user
+# to provision wifi credentials to the device via WiFi AP.
+captive_portal:
