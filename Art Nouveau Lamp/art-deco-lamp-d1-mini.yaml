@@ -1,0 +1,166 @@
+substitutions:
+  device_name: art-deco-lamp
+  friendly_name: 'Art Deco Lampe'
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  name_add_mac_suffix: false
+
+esp8266:
+  board: d1_mini
+  framework:
+    version: recommended
+
+# Enable logging
+logger:
+  level: DEBUG
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret esphome_api_key
+
+# Allow Over-The-Air updates
+ota:
+  - platform: esphome
+    password: !secret esphome_ota_key
+
+wifi:
+  min_auth_mode: WPA2
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "${device_name} fallback hotspot"
+    password: "MySecretPassword4HotSpot"
+
+# Allow provisioning Wi-Fi via serial or web_server
+#improv_serial:
+# or connect to the fallback ap and get redirected to a web page for wifi credentials
+# To have a "next url" for improv serial
+web_server:
+
+# In combination with the `ap` this allows the user
+# to provision wifi credentials to the device via WiFi AP.
+captive_portal:
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+
+light:
+  - platform: neopixelbus
+    type: GRB
+    variant: WS2812x
+    pin: D4             # RX (GPIO3) recommended for ESP 8266
+    num_leds: 16
+    name: "Art Deco"
+    id: led_ring
+    effects:
+      - addressable_lambda:
+          name: "Rainbow Ring"
+          update_interval: 100ms
+          lambda: |-
+            const int size = it.size();
+            static int offs = 0;
+            for (int x = 0; x < size; x++) {
+              it[x] = Color(ESPHSVColor((x+offs)*255/size, 255, 255).to_rgb());
+            }
+            offs = (offs + 1) % size;
+      - addressable_lambda:
+          name: "Rainbow Chase"
+          update_interval: 10ms
+          lambda: |-
+            const int size = it.size();
+            static int hue = 0;
+            static int offs = 0;
+            it[offs] = Color(ESPHSVColor(hue, 255, 255).to_rgb());
+            offs = (offs + 1) % size;
+            if ((offs % 2) == 0) hue = (hue + 1) % 255;
+      - addressable_lambda:
+          name: "Rainbow Slow"
+          update_interval: 200ms
+          lambda: |-
+            //uint32_t ms[16] = {1500, 1000, 700, 500, 400, 300, 200, 150, 100, 70, 50, 40, 30, 20, 15, 10};
+            //it.
+            const int size = it.size();
+            static int hue = 0;
+            it.all() =  Color(ESPHSVColor(hue, 255, 255).to_rgb());
+            hue = (hue + 1) % 255;
+      - addressable_lambda:
+          name: "Candle Light"
+          update_interval: 100ms
+          lambda: |-
+            const int size = it.size();
+            static uint8_t offs = 0;
+            uint8_t red = random(150, 255);
+            uint8_t green = random(red, 255) - 100;
+            uint8_t blue = red > 252 ?  240 : 0;
+            auto color = Color(red, green, blue);
+            for (int x = offs; x < size; x += 4) {
+              it[x] = color;
+            }
+            offs = (offs + 1) % size;
+      - addressable_lambda:
+          name: "Cop Alarm"
+          update_interval: 15ms
+          lambda: |-
+            const int size = it.size();
+            const auto red  = Color(255, 0, 0);
+            const auto blue = Color(0, 0, 255);
+            static int offs = 0;
+            for (int x = 0; x < size; x++) {
+              it[x] = ((x + offs) % size) < 8 ? red : blue;
+            }
+            offs = (offs + 1) % size;
+      - addressable_lambda:
+          name: "LED Level"
+          update_interval: 50ms
+          lambda: |-
+            const int size = it.size();  // you can change that if you don't want all the leds to be used
+            static int level = 0;
+            static int direction = 1; 
+            int leds_on = level;  //(int)(id(speed).state) % size;
+
+            // set those leds to the current_color of the light
+            it.range(0, leds_on) = current_color;
+
+            // set the remaing leds to black
+            if (leds_on + 1 < size) {
+              it.range(leds_on + 1, size) = Color(0, 0, 0);
+            }
+
+            level = level + direction;
+            if (level == size) direction = -1;
+            else if (level == 0) direction = 1;
+      # effects provided by ESPHome
+      - addressable_color_wipe:
+          name: "Color Wipe"
+      - addressable_scan:
+          name: "Scan"
+          scan_width: 2
+      - addressable_fireworks:
+          name: "Thunderstorm"
+          update_interval: 50ms
+      - addressable_fireworks:
+          name: "Fireworks"
+          use_random_color: true
+          update_interval: 50ms
+      - addressable_twinkle:
+          name: "Twinkle"
+      - addressable_random_twinkle:
+          name: "Twinkle Random"
+
+number:
+  platform: template
+  name: Speed
+  id: speed
+  min_value: 0
+  max_value: 15
+  step: 1
+  optimistic: true
+  internal: true
+
+
